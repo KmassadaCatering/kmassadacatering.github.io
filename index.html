@@ -9911,6 +9911,230 @@ function refreshProjetos() {
     setLastUpdate('projetos');
 }
 // ───────────────────────────────────────────────────────────────────────────
+
+// ===== PORTAL DA QUEIXA =====
+var _pqData = [];
+
+function _pqLoad() {
+  try { _pqData = JSON.parse(localStorage.getItem('pq_entries') || '[]'); } catch(e) { _pqData = []; }
+}
+function _pqSave() {
+  localStorage.setItem('pq_entries', JSON.stringify(_pqData));
+}
+
+function refreshPortalQueixa() {
+  _pqLoad();
+  renderPortalQueixa();
+  setLastUpdate('portal-queixa');
+}
+
+function renderPortalQueixa(filter, search) {
+  _pqLoad();
+  var data = _pqData.slice();
+  if (filter && filter !== '') {
+    if (['por_contactar','contactado','convertido'].indexOf(filter) >= 0) {
+      data = data.filter(function(e){ return e.estado === filter; });
+    } else {
+      data = data.filter(function(e){ return (e.tipo_queixa||'').toLowerCase().indexOf(filter) >= 0 || (e.notas||'').toLowerCase().indexOf(filter) >= 0; });
+    }
+  }
+  if (search && search.trim()) {
+    var s = search.trim().toLowerCase();
+    data = data.filter(function(e){ return (e.nome||'').toLowerCase().indexOf(s) >= 0 || (e.queixa||'').toLowerCase().indexOf(s) >= 0; });
+  }
+  // Stats
+  document.getElementById('pq-stat-total').textContent = _pqData.length;
+  document.getElementById('pq-stat-pendente').textContent = _pqData.filter(function(e){ return e.estado === 'por_contactar'; }).length;
+  document.getElementById('pq-stat-contactado').textContent = _pqData.filter(function(e){ return e.estado === 'contactado'; }).length;
+  document.getElementById('pq-stat-convertido').textContent = _pqData.filter(function(e){ return e.estado === 'convertido'; }).length;
+  // Badge
+  var pending = _pqData.filter(function(e){ return e.estado === 'por_contactar'; }).length;
+  var badge = document.getElementById('portal-queixa-badge');
+  if (badge) { badge.textContent = pending; badge.style.display = pending > 0 ? '' : 'none'; }
+  var tbody = document.getElementById('portal-queixa-tbody');
+  var empty = document.getElementById('portal-queixa-empty');
+  if (!tbody) return;
+  if (data.length === 0) {
+    tbody.innerHTML = '';
+    if (empty) empty.style.display = '';
+    return;
+  }
+  if (empty) empty.style.display = 'none';
+  var estadoCor = { por_contactar: '#fffbeb', contactado: '#ebf8ff', convertido: '#f0fff4', descartado: '#f7fafc' };
+  var estadoLabel = { por_contactar: '📋 Por contactar', contactado: '✉️ Contactado', convertido: '✅ Convertido', descartado: '🚫 Descartado' };
+  tbody.innerHTML = data.map(function(e) {
+    var cor = estadoCor[e.estado] || '#fff';
+    var label = estadoLabel[e.estado] || e.estado;
+    var tipoIcon = e.tipo === 'cafe' ? '☕' : '🏥';
+    var jaPipeline = false;
+    if (e.tipo === 'cafe') {
+      var cafes = JSON.parse(localStorage.getItem('cafes_data') || '[]');
+      jaPipeline = cafes.some(function(c){ return (c.nome||'').toLowerCase() === (e.nome||'').toLowerCase() && c.in_pipeline; });
+    } else {
+      var lares = loadData();
+      var lar = lares.find(function(l){ return (l.nome||'').toLowerCase() === (e.nome||'').toLowerCase(); });
+      jaPipeline = lar && lar.in_pipeline;
+    }
+    return '<tr style="background:' + cor + ';border-bottom:1px solid #e2e8f0">' +
+      '<td style="padding:7px 8px;font-weight:600">' + tipoIcon + ' ' + (e.nome||'—') + '</td>' +
+      '<td style="padding:7px 8px;color:#718096;font-size:12px">' + (e.tipo === 'cafe' ? 'Café/Snack' : 'Lar/IPSS') + '</td>' +
+      '<td style="padding:7px 8px;font-size:12px">' + (e.tipo_queixa||'—') + '</td>' +
+      '<td style="padding:7px 8px;font-size:12px;max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="' + (e.queixa||'') + '">' + (e.queixa||'—') + '</td>' +
+      '<td style="padding:7px 8px">' +
+        '<select onchange="pqChangeEstado(' + e.id + ', this.value)" style="font-size:11px;padding:2px 4px;border:1px solid #e2e8f0;border-radius:4px">' +
+          ['por_contactar','contactado','convertido','descartado'].map(function(s){ return '<option value="' + s + '"' + (e.estado===s?' selected':'') + '>' + (estadoLabel[s]||s) + '</option>'; }).join('') +
+        '</select>' +
+      '</td>' +
+      '<td style="padding:7px 8px;white-space:nowrap">' +
+        (jaPipeline ? '<span style="font-size:11px;color:#276749;background:#c6f6d5;padding:2px 8px;border-radius:10px">✅ Pipeline</span>' :
+          '<button class="btn btn-success" onclick="pqAddToPipeline(' + e.id + ')" style="font-size:11px;padding:3px 8px"><i class="fa fa-plus"></i> Pipeline</button>') +
+        ' <button class="btn btn-outline" onclick="pqDelete(' + e.id + ')" style="font-size:11px;padding:3px 8px;color:#e53e3e;border-color:#fc8181" title="Remover"><i class="fa fa-trash"></i></button>' +
+      '</td>' +
+    '</tr>';
+  }).join('');
+}
+
+function filtrarPortalQueixa(btn, filter) {
+  document.querySelectorAll('.pq-filter').forEach(function(b){ b.classList.remove('active'); b.style.background=''; b.style.color=''; });
+  btn.classList.add('active'); btn.style.background='#fed7d7'; btn.style.color='#c53030';
+  var search = document.getElementById('pq-search');
+  renderPortalQueixa(filter, search ? search.value : '');
+}
+
+function filtrarPortalQueixaSearch() {
+  var search = document.getElementById('pq-search');
+  var activeBtn = document.querySelector('.pq-filter.active');
+  var filter = activeBtn ? activeBtn.getAttribute('data-filter') : '';
+  renderPortalQueixa(filter, search ? search.value : '');
+}
+
+function pqChangeEstado(id, estado) {
+  _pqLoad();
+  var entry = _pqData.find(function(e){ return e.id === id; });
+  if (entry) { entry.estado = estado; _pqSave(); renderPortalQueixa(); }
+}
+
+function pqDelete(id) {
+  if (!confirm('Remover esta queixa?')) return;
+  _pqLoad();
+  _pqData = _pqData.filter(function(e){ return e.id !== id; });
+  _pqSave();
+  renderPortalQueixa();
+}
+
+function pqAddToPipeline(id) {
+  _pqLoad();
+  var entry = _pqData.find(function(e){ return e.id === id; });
+  if (!entry) return;
+  if (entry.tipo === 'cafe') {
+    // Add/update in cafes_data
+    var cafes = JSON.parse(localStorage.getItem('cafes_data') || '[]');
+    var existing = cafes.find(function(c){ return (c.nome||'').toLowerCase() === (entry.nome||'').toLowerCase(); });
+    if (existing) {
+      existing.in_pipeline = true;
+      existing.status_prospeto = existing.status_prospeto || 'por_contactar';
+    } else {
+      cafes.push({ id: Date.now(), nome: entry.nome, tipo: 'cafe', in_pipeline: true, status_prospeto: 'por_contactar', notas: 'Via Portal da Queixa: ' + (entry.queixa||''), fonte: 'portal_queixa' });
+    }
+    localStorage.setItem('cafes_data', JSON.stringify(cafes));
+    entry.estado = 'contactado';
+    _pqSave();
+    // Also try to use addToPipeline if exists in lares (in case café is mixed)
+    showToast('☕ ' + entry.nome + ' adicionado ao Pipeline!', 'success');
+    renderPortalQueixa();
+    // Navigate to pipeline
+    setTimeout(function(){ showSection && showSection('pipeline'); }, 800);
+  } else {
+    // It's a lar — find in lares data and add to pipeline
+    var lares = loadData();
+    var lar = lares.find(function(l){ return (l.nome||'').toLowerCase() === (entry.nome||'').toLowerCase(); });
+    if (lar) {
+      addToPipeline(lar.id);
+      entry.estado = 'contactado';
+      _pqSave();
+      renderPortalQueixa();
+    } else {
+      // Lar not in database — add as new
+      var newLar = { id: Date.now(), nome: entry.nome, in_pipeline: true, status_prospeto: 'por_contactar', notas: 'Via Portal da Queixa: ' + (entry.queixa||''), fonte: 'portal_queixa', tipo_servico: 'ERPI', prob_catering: 'media', score_catering: 50 };
+      lares.push(newLar);
+      saveData(lares);
+      entry.estado = 'contactado';
+      _pqSave();
+      showToast('🏥 ' + entry.nome + ' adicionado ao Pipeline!', 'success');
+      renderPortalQueixa();
+      setTimeout(function(){ showSection && showSection('pipeline'); }, 800);
+    }
+  }
+}
+
+function novaQueixaPortal() {
+  var html = '<div style="padding:4px">' +
+    '<div style="margin-bottom:10px">' +
+      '<label style="font-size:12px;font-weight:600;display:block;margin-bottom:3px">Tipo de Estabelecimento</label>' +
+      '<select id="pq-novo-tipo" style="width:100%;padding:6px;border:1px solid #e2e8f0;border-radius:6px;font-size:13px">' +
+        '<option value="lar">🏥 Lar / IPSS / ERPI</option>' +
+        '<option value="cafe">☕ Café / Snack-Bar / Restaurante</option>' +
+      '</select>' +
+    '</div>' +
+    '<div style="margin-bottom:10px">' +
+      '<label style="font-size:12px;font-weight:600;display:block;margin-bottom:3px">Nome do Estabelecimento *</label>' +
+      '<input id="pq-novo-nome" type="text" placeholder="Ex: Café Central Lisboa" style="width:100%;padding:6px;border:1px solid #e2e8f0;border-radius:6px;font-size:13px;box-sizing:border-box">' +
+    '</div>' +
+    '<div style="margin-bottom:10px">' +
+      '<label style="font-size:12px;font-weight:600;display:block;margin-bottom:3px">Tipo de Queixa</label>' +
+      '<select id="pq-novo-tipo-queixa" style="width:100%;padding:6px;border:1px solid #e2e8f0;border-radius:6px;font-size:13px">' +
+        '<option value="comida má qualidade">🍽️ Comida má qualidade</option>' +
+        '<option value="comida fria">🥶 Comida fria / mal aquecida</option>' +
+        '<option value="catering mau serviço">🚫 Catering mau serviço</option>' +
+        '<option value="higiene alimentar">⚠️ Higiene alimentar</option>' +
+        '<option value="intoxicação alimentar">🤢 Intoxicação alimentar</option>' +
+        '<option value="alimentação insuficiente">📉 Alimentação insuficiente</option>' +
+        '<option value="outro">📝 Outro</option>' +
+      '</select>' +
+    '</div>' +
+    '<div style="margin-bottom:10px">' +
+      '<label style="font-size:12px;font-weight:600;display:block;margin-bottom:3px">Resumo da Queixa</label>' +
+      '<textarea id="pq-novo-queixa" rows="3" placeholder="Descreve brevemente a queixa encontrada no Portal da Queixa..." style="width:100%;padding:6px;border:1px solid #e2e8f0;border-radius:6px;font-size:12px;box-sizing:border-box;resize:vertical"></textarea>' +
+    '</div>' +
+    '<div style="margin-bottom:10px">' +
+      '<label style="font-size:12px;font-weight:600;display:block;margin-bottom:3px">Link da Queixa (opcional)</label>' +
+      '<input id="pq-novo-link" type="text" placeholder="https://www.portaldaqueixa.com/..." style="width:100%;padding:6px;border:1px solid #e2e8f0;border-radius:6px;font-size:13px;box-sizing:border-box">' +
+    '</div>' +
+    '<div style="display:flex;gap:8px;justify-content:flex-end;margin-top:12px">' +
+      '<button onclick="document.getElementById(\'modal-overlay\').style.display=\'none\'" class="btn btn-outline" style="font-size:12px">Cancelar</button>' +
+      '<button onclick="pqGuardar()" class="btn btn-danger" style="font-size:12px"><i class="fa fa-save"></i> Guardar</button>' +
+      '<button onclick="pqGuardarEPipeline()" class="btn btn-success" style="font-size:12px"><i class="fa fa-plus"></i> Guardar e Adicionar ao Pipeline</button>' +
+    '</div>' +
+  '</div>';
+  openModal('🚨 Registar Queixa — Portal da Queixa', html);
+}
+
+function pqGuardar(addPipeline) {
+  var nome = (document.getElementById('pq-novo-nome')||{}).value||'';
+  var tipo = (document.getElementById('pq-novo-tipo')||{}).value||'lar';
+  var tipo_queixa = (document.getElementById('pq-novo-tipo-queixa')||{}).value||'outro';
+  var queixa = (document.getElementById('pq-novo-queixa')||{}).value||'';
+  var link = (document.getElementById('pq-novo-link')||{}).value||'';
+  if (!nome.trim()) { alert('Por favor insere o nome do estabelecimento.'); return; }
+  _pqLoad();
+  var entry = { id: Date.now(), nome: nome.trim(), tipo: tipo, tipo_queixa: tipo_queixa, queixa: queixa.trim(), link: link.trim(), estado: 'por_contactar', data: new Date().toLocaleDateString('pt-PT') };
+  _pqData.push(entry);
+  _pqSave();
+  var modal = document.getElementById('modal-overlay');
+  if (modal) modal.style.display = 'none';
+  renderPortalQueixa();
+  showToast('Queixa registada com sucesso!', 'success');
+  if (addPipeline) {
+    setTimeout(function(){ pqAddToPipeline(entry.id); }, 300);
+  }
+}
+
+function pqGuardarEPipeline() { pqGuardar(true); }
+
+// Initialize PQ on load
+document.addEventListener('DOMContentLoaded', function(){ _pqLoad(); renderPortalQueixa(); });
+
+// ───────────────────────────────────────────────────────────────────────────
 </script>
 
 <script>
