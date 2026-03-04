@@ -4138,8 +4138,8 @@ function addToPipeline(id) {
 
 function addBuscaToPipeline(id) {
   // Search in lares first, then ALL_PROSPECTS_BASE
-  var l = lares.find(function(x){ return x.id === id; });
-  if(!l) l = ALL_PROSPECTS_BASE.find(function(x){ return x.id === id; });
+  var l = lares.find(function(x){ return String(x.id) === String(id); });
+  if(!l) l = ALL_PROSPECTS_BASE.find(function(x){ return String(x.id) === String(id); });
   if(!l) return;
   showModal(`
     <div class="modal-header"><h3>📋 Adicionar ao Pipeline</h3><button class="modal-close" onclick="closeModal()">×</button></div>
@@ -4147,11 +4147,11 @@ function addBuscaToPipeline(id) {
       <p style="margin-bottom:12px">Em que fase está <strong>${l.nome}</strong>?</p>
       <div style="display:flex;flex-direction:column;gap:8px">
         ${PIPELINE_COLS.filter(c => c.id !== 'ganho' && c.id !== 'perdido').map(col => `
-          <button class="btn btn-outline" onclick="definirBuscaStagePipeline(${id},'${col.id}')" style="text-align:left;padding:10px 16px;font-size:14px">${col.label}</button>
+          <button class="btn btn-outline" onclick="definirBuscaStagePipeline('${id}','${col.id}')" style="text-align:left;padding:10px 16px;font-size:14px">${col.label}</button>
         `).join('')}
         <hr style="margin:4px 0">
         ${PIPELINE_COLS.filter(c => c.id === 'ganho' || c.id === 'perdido').map(col => `
-          <button class="btn btn-outline" onclick="definirBuscaStagePipeline(${id},'${col.id}')" style="text-align:left;padding:10px 16px;font-size:14px">${col.label}</button>
+          <button class="btn btn-outline" onclick="definirBuscaStagePipeline('${id}','${col.id}')" style="text-align:left;padding:10px 16px;font-size:14px">${col.label}</button>
         `).join('')}
       </div>
     </div>
@@ -4163,7 +4163,7 @@ function addBuscaToPipeline(id) {
 
 function definirBuscaStagePipeline(id, stage) {
   // Update in lares array
-  var l = lares.find(function(x){ return x.id === id; });
+  var l = lares.find(function(x){ return String(x.id) === String(id); });
   if(l) {
     l.status_prospeto = stage;
     l.in_pipeline = true;
@@ -4174,7 +4174,7 @@ function definirBuscaStagePipeline(id, stage) {
     return;
   }
   // If it's a cafe/other prospect, add it to lares and set stage
-  var baseItem = ALL_PROSPECTS_BASE.find(function(x){ return x.id === id; });
+  var baseItem = ALL_PROSPECTS_BASE.find(function(x){ return String(x.id) === String(id); });
   if(baseItem) {
     baseItem.status_prospeto = stage;
     baseItem.in_pipeline = true;
@@ -6192,7 +6192,7 @@ function renderBusca() {
       ? '<button onclick="window.open(\'tel:' + tel.replace(/\s/g,'') + '\')" style="padding:5px 10px;background:#dcfce7;color:#15803d;border:none;border-radius:6px;cursor:pointer;font-size:.8em">📞</button>'
       : '';
     var mapsQuery = encodeURIComponent([l.nome, l.morada||l.localidade, l.concelho, 'Portugal'].filter(Boolean).join(', '));
-    var pipelineBtn = '<button onclick="addBuscaToPipeline(' + l.id + ')" style="padding:5px 10px;background:#e0e7ff;color:#3730a3;border:none;border-radius:6px;cursor:pointer;font-size:.8em;font-weight:600" title="Adicionar ao Pipeline">➕ Pipeline</button>';
+    var pipelineBtn = '<button onclick="addBuscaToPipeline(\'' + l.id + '\')" style="padding:5px 10px;background:#e0e7ff;color:#3730a3;border:none;border-radius:6px;cursor:pointer;font-size:.8em;font-weight:600" title="Adicionar ao Pipeline">➕ Pipeline</button>';
     var mapsBtn = '<button onclick="window.open(\'https://www.google.com/maps/search/?api=1&query='+mapsQuery+'\',\'_blank\')" style="padding:5px 10px;background:#fef9c3;color:#854d0e;border:none;border-radius:6px;cursor:pointer;font-size:.8em" title="Ver no Google Maps">📍</button>';
     var rotaUrl = getRotaUrl(l);
     var rotaBtn = '<button onclick="window.open(\''+rotaUrl+'\',\'_blank\')" style="padding:5px 10px;background:#e0e7ff;color:#3730a3;border:none;border-radius:6px;cursor:pointer;font-size:.8em" title="Ver rota da empresa até ao lar">🗺️ Rota</button>';
