@@ -3922,8 +3922,8 @@ function renderKanban() {
   const board = document.getElementById('kanban-board');
   board.innerHTML = PIPELINE_COLS.map(col => {
     const colLares = lares.filter(l => l.in_pipeline && l.status_prospeto === col.id).slice(0, 20);
-    const colCafes = cafes.filter(c => c.in_pipeline && c.status_prospeto === col.id).slice(0, 20);
-    const totalCount = lares.filter(l=>l.in_pipeline&&l.status_prospeto===col.id).length + cafes.filter(c=>c.in_pipeline&&c.status_prospeto===col.id).length;
+    const colCafes = cafesData.filter(c => c.in_pipeline && c.status_prospeto === col.id).slice(0, 20);
+    const totalCount = lares.filter(l=>l.in_pipeline&&l.status_prospeto===col.id).length + cafesData.filter(c=>c.in_pipeline&&c.status_prospeto===col.id).length;
     return `
       <div class="kanban-col" ondrop="dropKanban(event,'${col.id}')" ondragover="event.preventDefault()">
         <div class="kanban-col-title">${col.label} <span class="kanban-card-count">${totalCount}</span></div>
@@ -4074,12 +4074,12 @@ function removeFromPipeline(id) {
 }
 
 function removeCafeFromPipeline(id) {
-  const c = cafes.find(x => String(x.id) === String(id));
-  if(c) { c.status_prospeto = null; c.in_pipeline = false; saveCafes(cafes); renderKanban(); toast('Café removido do pipeline!', 'info'); }
+  const c = cafesData.find(x => String(x.id) === String(id));
+  if(c) { c.status_prospeto = null; c.in_pipeline = false; saveCafes(); renderKanban(); toast('Café removido do pipeline!', 'info'); }
 }
 
 function irParaFichaCafe(id) {
-  var c = cafes.find(function(x){ return String(x.id) === String(id); });
+  var c = cafesData.find(function(x){ return String(x.id) === String(id); });
   if(!c) return;
   showModal(`
     <div class="modal-header" style="background:linear-gradient(135deg,#4c1d95,#7c3aed);color:#fff;padding:18px 22px;border-radius:12px 12px 0 0">
