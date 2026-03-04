@@ -4110,7 +4110,7 @@ function irParaFichaCafe(id) {
 function addToPipeline(id) {
   // Search in lares first, then cafes
   const l = lares.find(x => String(x.id) === String(id));
-  const c = !l ? cafes.find(x => String(x.id) === String(id)) : null;
+  const c = !l ? cafesData.find(x => String(x.id) === String(id)) : null;
   const item = l || c;
   if(!item) return;
   const isCafe = !!c;
@@ -4192,8 +4192,8 @@ function definirStagePipeline(id, stage) {
 }
 
 function definirCafeStagePipeline(id, stage) {
-  const c = cafes.find(x => String(x.id) === String(id));
-  if(c) { c.status_prospeto = stage; c.in_pipeline = true; saveCafes(cafes); renderKanban(); closeModal(); toast('✅ Café adicionado ao pipeline!', 'success'); }
+  const c = cafesData.find(x => String(x.id) === String(id));
+  if(c) { c.status_prospeto = stage; c.in_pipeline = true; saveCafes(); renderKanban(); closeModal(); toast('✅ Café adicionado ao pipeline!', 'success'); }
 }
 
 // ===== MAP =====
